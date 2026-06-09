@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系統規劃書 — 遙測衛星近即時自動化排程系統</title>
+<style>
+  :root{ --bg:#fff; --navy:#002A54; --navy2:#0B3C5D; --green:#1B803E;
+         --orange:#E65C19; --gray:#546E7A; --line:#D7DEE6; }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:#1f2d3d;
+        font-family:"Microsoft JhengHei","Inter","Source Han Sans",sans-serif;
+        line-height:1.75; -webkit-font-smoothing:antialiased; }
+  .topbar{ position:sticky; top:0; z-index:50; background:var(--navy); color:#fff;
+           padding:11px 24px; display:flex; align-items:center; gap:14px;
+           box-shadow:0 1px 6px rgba(0,0,0,.15); }
+  .topbar b{ font-size:15px; letter-spacing:.5px; }
+  .topbar .ey{ font-family:Consolas,monospace; font-size:12px; color:#9FB6CC; }
+  .topbar a{ margin-left:auto; color:#cfe0ef; text-decoration:none; font-size:13px;
+             border:1px solid #2c5278; border-radius:999px; padding:4px 12px; }
+  .topbar a:hover{ background:#0b3c5d; }
+  .wrap{ max-width:920px; margin:0 auto; padding:36px 28px 90px; }
+  h1,h2,h3,h4{ color:var(--navy); font-weight:800; line-height:1.3; }
+  h1{ font-size:30px; border-bottom:3px solid var(--navy); padding-bottom:12px; margin:8px 0 20px; }
+  h2{ font-size:24px; border-bottom:2px solid var(--navy); padding-bottom:8px; margin:40px 0 16px; }
+  h3{ font-size:19px; color:var(--navy2); margin:26px 0 10px; }
+  h4{ font-size:16px; color:var(--navy2); margin:20px 0 8px; }
+  a{ color:#0b5; }
+  a{ color:var(--orange); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  p,li{ font-size:15.5px; }
+  code{ font-family:Consolas,"Courier New",monospace; background:#F2F5F8;
+        color:var(--navy2); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre code{ background:none; padding:0; }
+  blockquote{ margin:16px 0; padding:10px 18px; border-left:4px solid var(--orange);
+              background:#FFF8F4; border-radius:0 10px 10px 0; color:#5a3a28; }
+  blockquote p{ margin:6px 0; font-size:14.5px; }
+  table{ border-collapse:collapse; width:100%; margin:18px 0; font-size:14.5px; display:block; overflow-x:auto; }
+  th,td{ border:1px solid var(--line); padding:8px 12px; text-align:left; vertical-align:top; }
+  th{ background:var(--navy); color:#fff; font-weight:700; white-space:nowrap; }
+  tr:nth-child(even) td{ background:#F7F9FB; }
+  hr{ border:none; border-top:2px solid var(--line); margin:32px 0; }
+  ul,ol{ padding-left:24px; }
+  .mermaid{ display:flex; justify-content:center; margin:22px 0; padding:18px;
+            border:2px solid var(--navy); border-radius:16px; background:#fff; overflow-x:auto; }
+  .toc-note{ font-family:Consolas,monospace; font-size:12px; color:var(--gray); }
+  #content > h1:first-child{ margin-top:0; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <b>系統規劃書</b>
+    <span class="ey">FS-8A · NEAR-REAL-TIME SCHEDULING · v0.1</span>
+    <a href="./index.html">← 進度報告</a>
+  </div>
+  <div class="wrap"><div id="content">載入中…</div></div>
+
+  <script id="md" type="text/markdown"># 遙測衛星近即時自動化排程系統 — 系統規劃書
+
+> 對象衛星：FORMOSAT-8 (FS-8A)　|　文件版本：v0.1　|　日期：2026-06-08
+> 本文件之限制條件與需求皆引用自專案兩份來源試算表（限制條件表、未來需求彙整表）。
+> 圖示採 Mermaid，於 GitHub / VS Code / Obsidian 可直接渲染。
+
+---
+
+## 目錄
+
+1. [文件目的與範圍](#1-文件目的與範圍)
+2. [系統需求 (System Requirements)](#2-系統需求-system-requirements)
+3. [工作說明書 (SOW)](#3-工作說明書-sow)
+4. [操作情境 (ConOps / Operational Scenarios)](#4-操作情境-conops--operational-scenarios)
+5. [系統架構 (System Architecture)](#5-系統架構-system-architecture)
+6. [主要功能 (Main Functions)](#6-主要功能-main-functions)
+7. [資料交換介面 (Data Exchange Interfaces)](#7-資料交換介面-data-exchange-interfaces)
+8. [工作流 (Workflows)](#8-工作流-workflows)
+9. [關鍵技術概念](#9-關鍵技術概念滾動視界--or-tools--ai)
+10. [排程最佳化模型 (OR-Tools 限制式)](#10-排程最佳化模型-or-tools-限制式)
+11. [非功能需求與資安](#11-非功能需求與資安)
+12. [開發路線圖](#12-開發路線圖)
+13. [風險與待確認事項](#13-風險與待確認事項)
+14. [名詞縮寫](#14-名詞縮寫)
+
+---
+
+## 1. 文件目的與範圍
+
+### 1.1 目的
+建立一套**近即時 (near-real-time)、自動化**的遙測衛星任務排程系統，取代／強化現行
+MPSS 之人工與批次排程流程，達成：
+
+- **自動化排程**：MA（任務分析師）僅做結果審查，排程由系統自動產生。
+- **動態調整**：可隨時針對**客戶緊急訂單**與**可用地面站資源**進行重排。
+- **近即時**：將求解時間自現行約 10 分鐘大幅縮短，支援事件驅動的即時重排。
+
+### 1.2 範圍
+| 納入 (In Scope) | 不納入 (Out of Scope) |
+| :-- | :-- |
+| 任務請求受理、優先度評估 | 衛星飛控軟體 (FSW) 本體修改 |
+| 滾動視界排程與衝突解決 | 影像處理與產品生成 (IPS 內部) |
+| 指令序列生成、上鏈介面 | 地面站天線硬體控制 |
+| 衛星資源 (SSR/電力/Contact) 驗證 | 軌道測定 (OD) 演算法本體 |
+| REST API / Webhook 整合 (SOCC↔IPS) | — |
+
+### 1.3 設計準則
+1. **資料源可替換**：PSS / 外部系統以 adapter 介面接入，目前以 mock 開發，規格到位即替換。
+2. **限制式設定驅動**：硬約束（互斥、Duty Cycle、仰角…）以設定/模型描述，不寫死於流程。
+3. **增量重排**：只重排受影響的衛星與時間窗，避免全星系全日重算（對應需求 ReSchedule）。
+
+---
+
+## 2. 系統需求 (System Requirements)
+
+需求編號規則：`SR-<類別>-<序>`。優先層級：H 高 / M 中 / L 低。
+
+### 2.1 功能需求 (Functional Requirements)
+
+| 編號 | 需求 | 說明 | 優先 |
+| :-- | :-- | :-- | :-: |
+| SR-REQ-01 | 任務請求受理 | 透過 REST API / Webhook 接收客戶／IPS 任務請求並入佇列 | H |
+| SR-REQ-02 | 優先度評估與分類 | 依客戶等級、緊急程度、截止時間自動分級（含緊急插單） | H |
+| SR-REQ-03 | 任務佇列管理 | 待排、排程中、已排、已執行、失敗等狀態機管理 | H |
+| SR-SCH-01 | 滾動視界排程 | 僅規劃眼前一段視界（如未來 1–2 軌 / 1–2 小時），週期滾動 | H |
+| SR-SCH-02 | 衝突偵測 | 偵測衛星、鏈路、天線、地面站、記憶體之同時段衝突 | H |
+| SR-SCH-03 | 衝突解決 | 以取消 / 延後 / 改地面站 / 改衛星 / 降級任務自動解決 | H |
+| SR-SCH-04 | 快速重排 (ReSchedule) | 因天氣、地面站故障、衛星異常、緊急插單觸發增量重排 | H |
+| SR-SCH-05 | 多目標最佳化 | 覆蓋率、延遲、下鏈吞吐、能源、優先度之加權最佳化 | H |
+| SR-SCH-06 | 自動建立 Session | 以 X-band Contact 為界，自每日 2 段細分至每日約 15 個 Session | M |
+| SR-RES-01 | 資源充足性驗證 API | 供 IPS 驗證 SSR、X-band/S-band Contact、Duty Cycle 是否足夠 | H |
+| SR-RES-02 | 能源/電池約束 | 排程須滿足電池電壓門檻與 GOHOME 50 分鐘充電週期 | H |
+| SR-RES-03 | SSR 儲存約束 | 依檔案數、sector 數、erase time 計算可行性 | H |
+| SR-EXE-01 | 指令序列生成 | 由排程結果生成 MPQ / 指令序列（含成對、不交錯檢查） | H |
+| SR-EXE-02 | 上鏈介面 | 將指令序列交付 SOCC 上鏈，回報結果 | H |
+| SR-EXE-03 | 衛星狀態監控回饋 | 接收遙測/執行結果，觸發必要重排 | H |
+| SR-EXE-04 | AOCS MPQ SEQ 擴充支援 | 支援每日 150 點位拍攝/下載（SEQ ID 256→512） | H |
+| SR-INT-01 | SOCC↔IPS RESTful API | 跨網域安全交換資料（GET/POST/PUT/DELETE） | H |
+| SR-INT-02 | Webhook 事件通知 | 訂單、重排、告警以事件推送 | H |
+| SR-OUT-01 | 排程輸出 | 標準化 JSON 排程檔（可擴充 XML/PSS 格式） | H |
+| SR-OUT-02 | 通知 | 排程完成 / 衝突 / 異常以 Email、Slack 發送 | H |
+| SR-AI-01 | AI 輔助最佳化 | 以學習式啟發法加速求解、預測雲遮/衝突風險 | M |
+
+### 2.2 非功能需求（摘要，詳見 §11）
+| 編號 | 需求 | 目標值 |
+| :-- | :-- | :-- |
+| SR-NFR-01 | 單次滾動視界求解時間 | ≤ 60 秒（緊急重排 ≤ 10 秒給出可行解） |
+| SR-NFR-02 | 緊急訂單端到端響應 | 自受理到產生候選排程 ≤ 2 分鐘 |
+| SR-NFR-03 | 可用度 | 排程服務 ≥ 99.5% |
+| SR-NFR-04 | 可稽核性 | 所有排程決策、衝突解決留軌跡 |
+| SR-NFR-05 | 資安 | 跨網域 API 採 TLS + Token + Access Control |
+
+---
+
+## 3. 工作說明書 (SOW)
+
+### 3.1 工作分解結構 (WBS)
+
+```mermaid
+graph TD
+    P[近即時自動化排程系統]
+    P --> W1[WP1 需求與系統設計]
+    P --> W2[WP2 排程引擎開發]
+    P --> W3[WP3 介面與整合]
+    P --> W4[WP4 執行與監控]
+    P --> W5[WP5 測試與驗證]
+    P --> W6[WP6 部署與維運]
+
+    W1 --> W1a[需求規格 SRS]
+    W1 --> W1b[系統架構 SDD]
+    W1 --> W1c[ICD 介面文件]
+
+    W2 --> W2a[滾動視界框架]
+    W2 --> W2b[OR-Tools 限制式模型]
+    W2 --> W2c[衝突偵測/解決]
+    W2 --> W2d[AI 加速與預測]
+
+    W3 --> W3a[REST API SOCC↔IPS]
+    W3 --> W3b[Webhook 事件總線]
+    W3 --> W3c[PSS 資料 adapter]
+
+    W4 --> W4a[指令序列生成]
+    W4 --> W4b[上鏈與結果回饋]
+    W4 --> W4c[狀態監控觸發重排]
+
+    W5 --> W5a[單元/整合測試]
+    W5 --> W5b[情境演練/壓力測試]
+    W5 --> W5c[與真實限制驗證]
+
+    W6 --> W6a[容器化部署]
+    W6 --> W6b[監控告警/維運手冊]
+```
+
+### 3.2 交付項目 (Deliverables)
+| WP | 交付物 | 形式 |
+| :-: | :-- | :-- |
+| WP1 | 系統需求規格書 (SRS)、系統設計書 (SDD)、介面控制文件 (ICD) | 文件 |
+| WP2 | 排程引擎（滾動視界 + OR-Tools 模型 + 衝突解決） | 程式碼 + 模型說明 |
+| WP3 | REST API 服務、Webhook 事件總線、PSS adapter | 程式碼 + OpenAPI 規格 |
+| WP4 | 指令生成器、上鏈介面、監控回饋模組 | 程式碼 |
+| WP5 | 測試計畫與報告、情境演練紀錄 | 文件 + 測試碼 |
+| WP6 | 部署包（容器）、維運手冊 | 部署檔 + 文件 |
+
+### 3.3 責任分工 (RACI 摘要)
+| 活動 | 承包/開發 | SOCC | IPS | MA |
+| :-- | :-: | :-: | :-: | :-: |
+| 排程引擎開發 | R/A | C | C | C |
+| 限制式與需求確認 | R | C | C | A |
+| API/ICD 議定 | R | A | A | C |
+| 指令上鏈 | C | R/A | I | I |
+| 排程結果審查 | I | C | C | R/A |
+| 緊急訂單核可 | I | A | R | C |
+
+> R 執行 / A 核准 / C 諮詢 / I 告知。
+
+### 3.4 里程碑（建議）
+| 里程碑 | 內容 | 相對時程 |
+| :-- | :-- | :-- |
+| M1 | 需求凍結、ICD v1 | T0 + 1 月 |
+| M2 | 排程引擎雛形（mock 資料端到端） | T0 + 3 月 |
+| M3 | 真實限制全納入 + OR-Tools 模型驗證 | T0 + 5 月 |
+| M4 | SOCC↔IPS API 整合測試 | T0 + 7 月 |
+| M5 | 情境演練（緊急插單/故障重排） | T0 + 9 月 |
+| M6 | 上線試運轉 | T0 + 11 月 |
+
+---
+
+## 4. 操作情境 (ConOps / Operational Scenarios)
+
+### 4.1 參與者與使用案例
+
+```mermaid
+graph LR
+    Cust([客戶/IPS 訂單])
+    MA([任務分析師 MA])
+    SOCC([SOCC 操作員])
+    GS([地面站資源])
+    SAT([衛星 FS-8A])
+
+    subgraph SYS[近即時自動化排程系統]
+        UC1((提交任務請求))
+        UC2((緊急訂單插單))
+        UC3((自動排程))
+        UC4((衝突偵測/解決))
+        UC5((快速重排))
+        UC6((資源充足性驗證))
+        UC7((指令生成/上鏈))
+        UC8((審查與通知))
+    end
+
+    Cust --> UC1
+    Cust --> UC2
+    IPS([IPS]) --> UC6
+    UC1 --> UC3
+    UC2 --> UC5
+    UC3 --> UC4
+    UC4 --> UC8
+    UC5 --> UC4
+    UC3 --> UC7
+    MA --> UC8
+    SOCC --> UC7
+    UC7 --> SAT
+    GS --> UC3
+    SAT --> UC5
+```
+
+### 4.2 情境 A — 例行自動排程（滾動視界）
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as 排程觸發器(定時/事件)
+    participant RL as 請求層
+    participant SE as 排程引擎
+    participant IPS as IPS(資源驗證)
+    participant MA as MA 審查
+    participant EX as 執行層
+    T->>RL: 進入新視界(未來1-2軌)
+    RL->>SE: 提供待排任務 + 優先度
+    SE->>IPS: 驗證 SSR/Contact/DutyCycle 是否足夠
+    IPS-->>SE: 可行資源回覆
+    SE->>SE: OR-Tools 求解(硬約束+多目標)
+    SE-->>MA: 候選排程(JSON) 供審查
+    MA-->>SE: 核可
+    SE->>EX: 生成指令序列
+    EX-->>T: 結果回饋, 視界向前滾動
+```
+
+### 4.3 情境 B — 客戶緊急訂單插單（動態調整）
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as 客戶
+    participant RL as 請求層(Webhook)
+    participant SE as 排程引擎
+    participant MA as MA
+    participant EX as 執行層
+    C->>RL: POST /orders (緊急, 高優先)
+    RL->>RL: 優先度評估→緊急分類
+    RL-->>SE: 觸發 ReSchedule(僅受影響視界)
+    SE->>SE: 鎖定當前視界, 增量重排
+    alt 有可行解
+        SE-->>MA: 緊急候選排程 + 受影響任務差異
+        MA-->>SE: 快速核可
+        SE->>EX: 重新生成/覆寫指令序列
+    else 無可行解
+        SE-->>RL: 回報衝突與降級建議(延後/改站/降級)
+    end
+    EX-->>C: 受理結果通知(Email/Slack)
+```
+
+### 4.4 情境 C — 地面站故障 / 衛星異常重排
+```mermaid
+sequenceDiagram
+    autonumber
+    participant MON as 監控(遙測/站況)
+    participant SE as 排程引擎
+    participant SE2 as 衝突解決器
+    participant EX as 執行層
+    MON->>SE: 事件: 地面站X離線 / 衛星ARO
+    SE->>SE: 標記受影響 Pass/Activity
+    SE->>SE2: 對受影響視界重排
+    SE2->>SE2: 改站/改衛星/延後/降級
+    SE2-->>SE: 新可行排程
+    SE->>EX: 覆寫指令, 通知相關方
+```
+
+---
+
+## 5. 系統架構 (System Architecture)
+
+### 5.1 三層邏輯架構（依官方 系統架構.pptx，對應未來需求第 6 項）
+
+```mermaid
+flowchart LR
+    CLI[客戶 / IPS]:::ext
+    EV["事件來源<br>衛星異常 · 地面站離線<br>雲覆蓋 · 緊急訂單"]:::ext
+
+    subgraph REQ[Request Layer 請求層]
+        direction TB
+        ORD[Orders]
+        RX[事件接收器]
+        PSSE[PSS 評估]
+        ORD --> PSSE
+        RX --> PSSE
+    end
+    subgraph SCH[Scheduling Layer 排程層]
+        direction TB
+        ROLL[滾動視界排程器]
+        ORT[OR-Tools 求解器]
+        RES[資源驗證]
+        MQ[訊息佇列]
+        SUB[訂閱者]
+        CMD[指令序列生成]
+        ROLL <--> ORT
+        ROLL <-->|REST 驗證| RES
+        MQ -->|Webhook| SUB
+        ROLL --> CMD
+    end
+    subgraph EXE[Execute Layer 執行層]
+        direction TB
+        REV[通知審查]
+        UP[指令上傳]
+        MON[衛星狀態監控]
+        REV --> UP
+    end
+
+    CLI -->|REST/Webhook| ORD
+    EV --> RX
+    RX -->|事件| MQ
+    PSSE -->|REST API| ROLL
+    CMD -->|JSON 排程| REV
+    UP --> SAT[(衛星 FS-8A)]
+    MON -->|回饋| ROLL
+
+    classDef ext fill:#eef,stroke:#557;
+    class CLI,EV,SAT ext;
+```
+
+> 元件對應實作：Request Layer→`trigger/event.py`+`service.py`；Scheduling Layer→
+> `scheduler/rolling.py`+`cpsat.py`+`service.verify_resources`+事件通知；Execute Layer→
+> 指令序列生成/上鏈/監控回饋（部分待 Phase 4）。
+
+### 5.2 部署視圖（建議）
+
+```mermaid
+graph LR
+    subgraph SOCC_NET[SOCC 網域]
+        API[排程 API 服務\nFastAPI]
+        ENG[排程引擎\nOR-Tools Worker]
+        Q[(訊息佇列\n事件總線)]
+        DB[(PostgreSQL)]
+        SCH[滾動視界排程器\n定時/事件]
+    end
+    subgraph IPS_NET[IPS 網域]
+        IPSAPI[IPS REST API]
+    end
+    GW{API Gateway\nTLS + Token}
+    API --- Q --- ENG
+    SCH --> Q
+    ENG --> DB
+    API --> DB
+    API <--> GW <--> IPSAPI
+    ENG --> NOTIF[通知服務]
+```
+
+> 引擎與 API 分離：API 負責受理與查詢（快速回應），重運算的求解交由 worker 經佇列非同步處理，確保近即時響應與水平擴充。
+
+---
+
+## 6. 主要功能 (Main Functions)
+
+```mermaid
+graph TD
+    ROOT[排程系統功能]
+
+    ROOT --> F1[F1 任務請求管理]
+    F1 --> F1a[受理/驗證請求]
+    F1 --> F1b[優先度評估]
+    F1 --> F1c[佇列/狀態機]
+
+    ROOT --> F2[F2 排程計算]
+    F2 --> F2a[滾動視界控制]
+    F2 --> F2b[可見窗計算/Session 切分]
+    F2 --> F2c[OR-Tools 求解]
+    F2 --> F2d[多目標權衡]
+
+    ROOT --> F3[F3 衝突管理]
+    F3 --> F3a[衝突偵測]
+    F3 --> F3b[衝突解決策略]
+    F3 --> F3c[快速重排 ReSchedule]
+
+    ROOT --> F4[F4 資源管理]
+    F4 --> F4a[SSR 儲存核算]
+    F4 --> F4b[電力/GOHOME 充電週期]
+    F4 --> F4c[Contact/天線/頻寬]
+
+    ROOT --> F5[F5 指令與執行]
+    F5 --> F5a[指令序列生成]
+    F5 --> F5b[成對/不交錯檢查]
+    F5 --> F5c[上鏈與回饋]
+
+    ROOT --> F6[F6 整合與通知]
+    F6 --> F6a[REST API]
+    F6 --> F6b[Webhook 事件]
+    F6 --> F6c[Email/Slack 通知]
+
+    ROOT --> F7[F7 智慧輔助]
+    F7 --> F7a[啟發式暖啟動]
+    F7 --> F7b[雲遮/衝突風險預測]
+    F7 --> F7c[歷史學習調參]
+```
+
+---
+
+## 7. 資料交換介面 (Data Exchange Interfaces)
+
+### 7.1 介面總覽
+
+```mermaid
+graph LR
+    Client[客戶/IPS] -- REST/Webhook --> RL[請求層]
+    PSS[(PSS)] -- REST/拉取 --> ENG[排程引擎]
+    ENG -- REST 驗證 --> IPS[(IPS 資源驗證)]
+    ENG -- JSON 排程 --> SOCC[SOCC 執行]
+    ENG -- 事件 --> BUS[(事件總線)]
+    BUS -- Webhook --> Subs[訂閱者/通知]
+```
+
+### 7.2 REST API 端點（草案）
+
+| 方法 | 路徑 | 用途 | 備註 |
+| :-- | :-- | :-- | :-- |
+| POST | `/api/v1/orders` | 提交任務請求（含緊急旗標） | 回傳 order_id |
+| GET | `/api/v1/orders/{id}` | 查詢訂單狀態 | |
+| DELETE | `/api/v1/orders/{id}` | 取消訂單 | 觸發重排 |
+| POST | `/api/v1/schedule/run` | 觸發一次滾動視界排程 | 事件/定時呼叫 |
+| GET | `/api/v1/schedule/{horizon_id}` | 取得排程結果 (JSON) | |
+| POST | `/api/v1/resources/verify` | 資源充足性驗證 | 供 IPS：SSR/Contact/DutyCycle |
+| POST | `/api/v1/webhooks` | 註冊 Webhook 訂閱 | 事件推送 |
+| GET | `/api/v1/health` | 健康檢查 | |
+
+### 7.3 Webhook 事件（事件驅動）
+
+| 事件 | 觸發時機 | Payload 重點 |
+| :-- | :-- | :-- |
+| `order.received` | 收到新訂單 | order_id, priority, deadline |
+| `order.urgent` | 緊急訂單 | order_id, 影響視界 |
+| `schedule.generated` | 排程產生 | horizon_id, 統計, 衝突數 |
+| `schedule.conflict` | 偵測到無法解決衝突 | 衝突清單, 降級建議 |
+| `resource.exhausted` | 資源不足 | 資源類型, 缺口 |
+| `satellite.anomaly` | 衛星異常 (ARO 等) | sat, 受影響活動 |
+| `groundstation.offline` | 地面站離線 | station, 受影響 Pass |
+
+### 7.4 核心資料模型（JSON Schema 摘要）
+
+**任務請求 Order**
+```json
+{
+  "order_id": "ORD-20260608-001",
+  "customer": "CUST-A",
+  "priority": "urgent",            // routine | high | urgent
+  "target": {"lat": 23.5, "lon": 121.0},
+  "activity": "RSI_REC",
+  "deadline": "2026-06-08T12:00:00Z",
+  "constraints": {"max_cloud": 0.3, "min_elevation_deg": 11.5}
+}
+```
+
+**排程結果 Schedule（輸出 JSON）**
+```json
+{
+  "horizon_id": "H-20260608T0200Z",
+  "generated_at": "2026-06-08T01:55:00Z",
+  "satellite": "FS-8A",
+  "activities": [
+    {"activity_id":"A1","type":"RSI_REC","start":"...","end":"...",
+     "arlentryid":"E1","ground_station":null,"duty_used_s":480},
+    {"activity_id":"A2","type":"RSI_PBK","start":"...","end":"...",
+     "arlentryid":"E1","ground_station":"HSZ","elevation_deg":15.2},
+    {"activity_id":"A3","type":"GOHOME","start":"...","end":"...",
+     "duration_s":180}
+  ],
+  "rejected": [{"order_id":"ORD-...","reason":"resource_conflict"}],
+  "resources": {"ssr_sectors_used":2859,"battery_min_v":28.1}
+}
+```
+
+**資源驗證 ResourceVerify（供 IPS）**
+```json
+{
+  "request": {"activity":"RSI_REC","duration_s":520,"cr":1.5,"line_rate":7030},
+  "result": {"feasible": true,
+    "ssr_required_sectors": 2859, "ssr_available_sectors": 4094,
+    "xband_contact_ok": true, "duty_cycle_ok": true}
+}
+```
+
+### 7.5 ICD 要點（SOCC ↔ IPS）
+- 傳輸：HTTPS / REST，JSON。認證：Bearer Token + 雙向 Access Control。
+- 動詞語意：GET 查詢、POST 新增、PUT/PATCH 更新、DELETE 刪除。
+- 冪等性：`POST /schedule/run` 以 `horizon_id` 去重，避免重複求解。
+- 版本化：路徑帶 `/v1`，破壞性變更升版。
+
+---
+
+## 8. 工作流 (Workflows)
+
+### 8.1 滾動視界主迴圈
+
+```mermaid
+flowchart TD
+    S([視界開始]) --> A[擷取狀態:軌道/SSR/電量/站況]
+    A --> B[收集視界內候選任務+優先度]
+    B --> C[計算可見窗 & 切分 Session\n以 X-band Contact 為界]
+    C --> D[建構 OR-Tools 模型\n硬約束+多目標]
+    D --> E{求解成功?}
+    E -- 是 --> F[凍結近端視界\n輸出排程 JSON]
+    E -- 否 --> G[放寬軟目標/降級低優先\n再求解]
+    G --> E
+    F --> H[生成指令序列]
+    H --> I[通知/審查]
+    I --> J[視界向前滾動 Δt]
+    J --> S
+```
+
+### 8.2 衝突偵測與解決
+
+```mermaid
+flowchart TD
+    IN([新增/變更活動]) --> D1{時間重疊?\n互斥矩陣}
+    D1 -- 否 --> OK([無衝突])
+    D1 -- 是 --> R[列出衝突資源:\n站/天線/鏈路/SSR/電力]
+    R --> S1{可改地面站?}
+    S1 -- 是 --> A1[改站重排] --> OK
+    S1 -- 否 --> S2{可延後?}
+    S2 -- 是 --> A2[延後至次一可見窗] --> OK
+    S2 -- 否 --> S3{可改衛星?}
+    S3 -- 是 --> A3[轉派其他衛星] --> OK
+    S3 -- 否 --> S4{可降級?}
+    S4 -- 是 --> A4[降低解析度/壓縮比] --> OK
+    S4 -- 否 --> X[標記無解\n回報降級建議]
+```
+
+### 8.3 緊急插單快速重排（增量）
+
+```mermaid
+flowchart LR
+    U([緊急訂單]) --> P[優先度=urgent]
+    P --> W[鎖定當前+下一視界]
+    W --> L[僅取受影響衛星/時間窗的活動]
+    L --> M[以現有排程為暖啟動\n固定未受影響部分]
+    M --> Solve[OR-Tools 增量求解\n限時 ≤10s]
+    Solve --> Q{達標?}
+    Q -- 是 --> Out[輸出差異 diff + 通知]
+    Q -- 否 --> Deg[提出降級/延後方案]
+```
+
+---
+
+## 9. 關鍵技術概念（滾動視界 / OR-Tools / AI）
+
+### 9.1 滾動視界排程器 (Rolling Horizon Scheduler)
+傳統排程一次規劃「所有未來」（如整週生產計畫），但太空環境隨時變動、未來資訊不準。
+**滾動視界**採「且戰且走」：只規劃眼前一小段**視界 (Horizon)**（如未來 1 小時 / 2 軌），
+執行一部分後，視界向前滾動 Δt 再重排。優點：
+
+- **吸收不確定性**：雲遮、站況、緊急插單都在下一次滾動被納入。
+- **計算可控**：每次只解小問題，符合近即時時限。
+- **天然支援 ReSchedule**：只重排受影響視界，不必全星系全日重算。
+
+參數：視界長度 `H`、滾動步長 `Δt`、凍結區 `freeze`（近端已上鏈不可改）。
+
+### 9.2 Google OR-Tools (CP-SAT)
+以**約束規劃 / 可滿足性 (CP-SAT)** 建模本問題最自然：活動為帶起訖時間的區間變數，
+互斥以 `NoOverlap`、資源以 `Cumulative`、順序以線性不等式表達，多目標以加權或字典序。
+詳見 §10。OR-Tools 提供暖啟動 (hint)、時間上限 (max_time_in_seconds)，契合滾動視界與緊急重排。
+
+### 9.3 AI 優化定位
+| AI 角色 | 作用 | 與 OR-Tools 關係 |
+| :-- | :-- | :-- |
+| 啟發式暖啟動 | 由歷史排程學出好的初始解作 hint | 加速 CP-SAT 收斂 |
+| 風險預測 | 預測雲遮、衝突、資源耗盡機率 | 調整目標權重/提前避讓 |
+| 參數自適應 | 依負載動態調 H、Δt、權重 | 控制求解時間 vs 品質 |
+
+> 技術演進路線：**精確求解 → 快速近似 → 自適應學習**，計算速度大幅提升以支援近即時。
+
+---
+
+## 10. 排程最佳化模型 (OR-Tools 限制式)
+
+### 10.1 決策變數
+- 對每個候選活動 `a`：起始 `start_a`、結束 `end_a`、是否排入 `present_a`（OptionalInterval）。
+- 站點指派 `site_a ∈ {可見地面站}`（RSI_PBK 至多一站）。
+
+### 10.2 硬約束（取自限制條件表，須全部滿足）
+
+| # | 約束 | 模型化 | 來源 |
+| :-- | :-- | :-- | :-- |
+| C1 | 活動互斥矩陣（Attitude/Orbit/GOHOME/GAT/RSI_REC/RSI_PBK 彼此不重疊） | `AddNoOverlap` | 互斥矩陣 |
+| C2 | 同類活動自身不重疊 | `AddNoOverlap` | 資源衝突 #18 |
+| C3 | RSI_REC ≤ 8 min/軌（Duty Cycle） | 區間長度上界 + 每軌累積 | Duty #10 |
+| C4 | RSI_PBK ≤ 10 min/軌 | 同上 | Duty #11 |
+| C5 | GOHOME 間隔 ≤ 50 min（充電） | 相鄰 GOHOME 起點差 ≤ 50min | Duty #12 |
+| C6 | RSI_PBK 須在 X-band 仰角 ≥ 11.5° 視窗內 | 區間 ⊆ 可見窗集合 | Duty #13 |
+| C7 | SPL 須 Eclipse 且 S-band 仰角 ≥ 10° | 區間 ⊆ Eclipse∩Sband 窗 | Duty #14 / 活動表 |
+| C8 | 兩取像間隔 ≥ 26 s | 相鄰 REC 間隔下界 | 時序 #1 |
+| C9 | 機動後 +30s 緩衝才取像 | 順序 + lag | 時序 #2 |
+| C10 | RSI_PBK 須待同 arlentryid 之 REC 完成 | `end_REC ≤ start_PBK` | 活動表 20 |
+| C11 | RSI_DEL = 對應 PBK contact + 6s，且待 REC+PBK 完成 | 等式 + 順序 | 活動表 26/27 |
+| C12 | 一個地面站同時段只服務一顆衛星（+turnaround） | 站資源 `Cumulative(cap=1)` | 資源衝突 #19 |
+| C13 | SSR 容量：所需 sector ≤ 可用；最多 512 檔；同時讀寫各 6 | `Cumulative` + 計數 | SSR #20/#24 |
+| C14 | 電池電壓不得低於門檻（27.8V 關 Payload / 26.4V ARO） | 能量收支模擬約束 | EPS 限制 |
+| C15 | 指令成對且不交錯（STX/EU/SSR/CC On-Off） | 配對 + 排序約束 | 指令 #26 |
+
+> 所需 sector 數：`Required = ceil(Total_bit / (128 × 2^20))`。Erase time ≈ `sector × 0.007s`（4096 sectors ≈ 286.7s），列為時序不確定性緩衝。
+
+### 10.3 多目標（軟目標，加權最佳化）
+```
+maximize  w1·覆蓋率 + w2·下鏈吞吐
+minimize  w3·任務完成延遲 + w4·能源消耗 + w5·優先度違反
+```
+- 高優先度/緊急訂單以大權重或字典序優先。
+- 滾動視界中以 `solver.parameters.max_time_in_seconds` 控制求解時限；緊急重排用更短時限 + 暖啟動。
+
+### 10.4 求解策略
+1. 以上一視界排程為 **hint**（暖啟動）。
+2. 凍結近端已上鏈活動（固定變數）。
+3. 先求可行解（滿足硬約束），再於剩餘時間內優化軟目標。
+4. 無可行解 → 觸發 §8.2 衝突解決（改站/延後/改星/降級）。
+
+---
+
+## 11. 非功能需求與資安
+
+| 面向 | 需求 |
+| :-- | :-- |
+| 效能 | 視界求解 ≤ 60s；緊急重排 ≤ 10s 給可行解；目標優於現行 ~10min |
+| 擴充性 | 引擎 worker 可水平擴充；支援多衛星多地面站 |
+| 可靠性 | 求解逾時有 fallback（上一可行解）；佇列持久化 |
+| 可稽核 | 排程決策、衝突解決、覆寫皆留軌跡（誰/何時/為何） |
+| 資安 | TLS、Bearer Token、Access Control（對應 XPSOC Python Directive/Command 權限管控）；SOCC↔IPS 跨網域最小權限 |
+| 可觀測 | 指標（求解時間、衝突率、資源使用）、日誌、告警 |
+
+---
+
+## 12. 開發路線圖
+
+```mermaid
+graph LR
+    P1[Phase 1\n骨架+mock\n端到端 JSON] --> P2[Phase 2\nOR-Tools 核心約束\nC1-C7]
+    P2 --> P3[Phase 3\n資源模型\nSSR/電力/Contact]
+    P3 --> P4[Phase 4\n滾動視界+ReSchedule\nWebhook 事件驅動]
+    P4 --> P5[Phase 5\nSOCC↔IPS API 整合]
+    P5 --> P6[Phase 6\nAI 暖啟動/風險預測]
+    P6 --> P7[Phase 7\n情境演練+試運轉]
+```
+
+> **進度**：
+> - ✅ **Phase 1 骨架**：請求層 webhook、PSS adapter、簡化排程引擎、JSON 輸出、Email/Slack 通知、測試。
+> - ✅ **Phase 2 OR-Tools 核心**：`scheduler/cpsat.py` 以 CP-SAT 實作硬約束 **C1–C7**
+>   （互斥 NoOverlap、RSI_REC/PBK Duty Cycle、GOHOME 50min 充電、X-band/Eclipse 可見窗），
+>   活動式模型於 `activity_models.py`，示範 `demo_cpsat.py`，測試 `tests/test_cpsat.py` 逐條驗證。
+> - ✅ **滾動視界外框**：`scheduler/rolling.py` 實作 §8.1 主迴圈（視界/步長/凍結、
+>   跨視界 carry-over）與 §8.3 緊急增量重排（凍結近端 + 暖啟動 + 差異 diff），
+>   示範 `demo_rolling.py`，測試 `tests/test_rolling.py`。緊急插單增量求解 ~15ms。
+> - ✅ **事件驅動端到端**：`service.py`（`SchedulingService` 狀態管理）+ `trigger/event.py`
+>   （FastAPI：`POST /api/v1/orders`、`/schedule/run`、`/resources/verify`、`GET /schedule`）。
+>   緊急訂單即時觸發增量重排（~14ms），routine 入佇列待滾動排程；含事件流通知掛勾。
+>   示範 `demo_service.py`，測試 `tests/test_service.py`。共 23 測試全過。
+> - ✅ **Phase 3 C8–C12、C15**：`scheduler/cpsat.py` 加入取像間隔 ≥26s（加長區間 NoOverlap）、
+>   機動後 +30s 緩衝（成對順序）、`arlentryid` 順序相依 REC→PBK→DEL（C10/C11）、
+>   地面站資源 +turnaround（C12，NoOverlap/Cumulative）、指令成對不交錯（C15，同設備 span NoOverlap）。
+>   測試 `tests/test_phase3.py`、`tests/test_phase3b.py`，共 38 測試全過。
+> - ✅ **PSS 活動式介面對齊**：`pss/provider.py` 的 `PSSProvider.fetch_context()` → `PSSContext`
+>   （軌道、地面站、X-band/S-band/Eclipse 可見窗）。`SchedulingService.from_pss()` 自動指派軌道、套可見窗。
+> - ✅ **多衛星擴充**：互斥（C1/C2）、Duty Cycle、GOHOME、取像間隔、機動緩衝、指令配對皆「按衛星分組」
+>   （`Activity.satellite`）；地面站（C12）為跨衛星共用資源，天線數 >1 時不同衛星接觸可同時段並行。
+>   測試 `tests/test_multisat.py`，共 48 測試全過。
+> - ⏭️ **下一步**：C13 SSR sector 核算、C14 電力收支 —— 需 §13 待確認事項（SSR 讀寫模型、
+>   EPS 充放電模型）到位。接真 PSS API（補 `RestPSSProvider.fetch_context()`）。
+
+---
+
+## 13. 風險與待確認事項
+
+| 項目 | 說明 | 需向誰確認 |
+| :-- | :-- | :-- |
+| PSS API 規格 | endpoint / 認證 / 軌道與可見窗資料格式尚未提供 | SOCC/PSS |
+| Maneuver 禁區 | 特定緯度/時段禁止 Maneuver、GOHOME（限制表標「待補」） | AOCS |
+| Maneuver 最小間隔 | 兩次機動最小間隔秒數待確認 | AOCS |
+| 能量收支模型 | C14 電池模擬需要充放電率與負載模型 | EPS |
+| 緊急訂單核可流程 | 是否需人工核可、SLA 時限 | IPS/MA |
+| 地面站清單與遮罩 | 各站 X/S-band mask、turnaround time | SOCC |
+| 求解時限目標 | 近即時可接受的最長求解時間 | MA/SOCC |
+
+---
+
+## 14. 名詞縮寫
+
+| 縮寫 | 全稱 / 說明 |
+| :-- | :-- |
+| MPSS | Mission Planning & Scheduling System 任務規劃排程系統 |
+| SOCC | Satellite Operations Control Center 衛星操作控制中心 |
+| IPS | Image Processing System 影像處理系統 |
+| MA | Mission Analyst 任務分析師 |
+| SSR | Solid State Recorder 固態記錄器 |
+| RSI | Remote Sensing Instrument 遙測酬載；REC 取像 / PBK 回放 / DEL 刪除 |
+| SPL | Science Payload 科學酬載；PRO 程序 / PBK 回放 |
+| GOHOME | 返航充電機動 |
+| GAT | GAT Maneuver |
+| ARO | Automatic Recovery Operation 自動恢復操作 |
+| Duty Cycle | 單軌活動開機時間上限 |
+| arlentryid | 取像任務條目識別（REC/PBK/DEL 關聯鍵） |
+| Eclipse | 地影期 |
+| OR-Tools | Google 最佳化工具組 (CP-SAT) |
+| CP-SAT | Constraint Programming – Satisfiability 求解器 |
+
+---
+
+> 本規劃書為 v0.1，待 §13 事項確認後更新。實作骨架見專案 `src/satsched/`，
+> 真實限制與需求出處見專案來源試算表。
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    // marked@4：renderer 用 positional 參數；headerIds 預設產生 GitHub 風格錨點（TOC 可跳）
+    const renderer = new marked.Renderer();
+    const origCode = renderer.code.bind(renderer);
+    renderer.code = function(code, infostring, escaped){
+      if((infostring || '').trim() === 'mermaid'){
+        return '<div class="mermaid">' + code
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+      }
+      return origCode(code, infostring, escaped);
+    };
+    marked.setOptions({ renderer, gfm:true, breaks:false, headerIds:true });
+
+    const md = document.getElementById('md').textContent;
+    document.getElementById('content').innerHTML = marked.parse(md);
+
+    mermaid.initialize({ startOnLoad:false, theme:'base',
+      themeVariables:{ fontFamily:'"Microsoft JhengHei","Inter",sans-serif', fontSize:'14px',
+        primaryColor:'#FFFFFF', primaryBorderColor:'#002A54', primaryTextColor:'#002A54',
+        lineColor:'#0B3C5D', clusterBkg:'#F7F9FB', clusterBorder:'#002A54', tertiaryColor:'#FFFFFF' },
+      flowchart:{ curve:'basis', useMaxWidth:true, htmlLabels:true } });
+    mermaid.run({ querySelector:'.mermaid' });
+  </script>
+</body>
+</html>
