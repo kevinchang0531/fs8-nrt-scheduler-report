@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>遙測衛星近即時自動化排程系統 — 今日進度 2026-06-08</title>
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --navy:#002A54;
+    --navy-soft:#0B3C5D;
+    --green:#1B803E;
+    --orange:#E65C19;
+    --gray:#546E7A;
+    --yellow:#FFF9C4;
+    --line:#D7DEE6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--navy);
+    font-family:"Microsoft JhengHei","Inter","Source Han Sans",sans-serif;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  code,.mono{font-family:"Consolas","Courier New","SF Mono",monospace;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px 96px;}
+
+  /* ── 封面 ── */
+  .cover{
+    position:relative;overflow:hidden;
+    padding:88px 32px 64px;border-bottom:2px solid var(--navy);
+  }
+  .cover .inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    font-family:"Consolas",monospace;letter-spacing:3px;
+    color:var(--gray);font-size:14px;margin-bottom:18px;
+  }
+  .cover h1{font-size:52px;font-weight:800;line-height:1.15;letter-spacing:-1px;}
+  .cover h1 .accent{color:var(--navy-soft);}
+  .cover .sub{margin-top:18px;font-size:19px;color:var(--gray);font-weight:600;}
+  .cover .meta{
+    margin-top:28px;display:flex;gap:14px;flex-wrap:wrap;
+    font-family:"Consolas",monospace;font-size:13px;
+  }
+  .meta .tag{
+    border:1.5px solid var(--navy);border-radius:999px;
+    padding:5px 14px;color:var(--navy);
+  }
+  /* 右側軌道線條裝飾 */
+  .orbit{position:absolute;top:-60px;right:-120px;width:560px;height:560px;z-index:1;opacity:.5;}
+
+  /* ── 區段 ── */
+  section{margin-top:56px;}
+  h2{
+    font-size:26px;font-weight:800;display:flex;align-items:center;gap:12px;
+    padding-bottom:12px;border-bottom:2px solid var(--navy);
+  }
+  h2 .no{font-family:"Consolas",monospace;color:var(--orange);font-size:20px;}
+  .lead{margin-top:14px;font-size:16px;color:#33485e;}
+
+  /* 卡片 */
+  .grid{display:grid;gap:18px;margin-top:24px;}
+  .grid.c2{grid-template-columns:repeat(2,1fr);}
+  .grid.c4{grid-template-columns:repeat(4,1fr);}
+  .card{
+    border:2px solid var(--navy);border-radius:18px;padding:22px 22px 20px;background:#fff;
+  }
+  .card h3{font-size:17px;font-weight:800;margin-bottom:8px;}
+  .card p{font-size:14.5px;color:#3a4f63;}
+  .card .big{font-size:38px;font-weight:800;color:var(--navy);line-height:1;}
+  .card .unit{font-size:14px;color:var(--gray);font-weight:600;margin-top:6px;}
+
+  /* 狀態藥丸 */
+  .pill{
+    display:inline-block;font-family:"Consolas",monospace;font-size:12.5px;font-weight:700;
+    padding:3px 11px;border-radius:999px;line-height:1.6;
+  }
+  .pill.done{background:rgba(27,128,62,.12);color:var(--green);border:1.5px solid var(--green);}
+  .pill.next{background:rgba(230,92,25,.10);color:var(--orange);border:1.5px solid var(--orange);}
+  .pill.wait{background:var(--yellow);color:#8a6d00;border:1.5px solid #E6D24A;}
+  .pill.off{background:rgba(84,110,122,.10);color:var(--gray);border:1.5px solid var(--gray);}
+
+  /* 終端機式狀態列（LED） */
+  .term{
+    border:2px solid var(--navy);border-radius:16px;overflow:hidden;margin-top:22px;
+  }
+  .term .row{
+    display:flex;align-items:center;gap:14px;padding:13px 20px;
+    border-bottom:1px solid var(--line);font-size:15px;
+  }
+  .term .row:last-child{border-bottom:none;}
+  .led{
+    width:13px;height:13px;border-radius:50%;flex:0 0 13px;
+    background:var(--green);box-shadow:0 0 0 3px rgba(27,128,62,.18),0 0 9px 1px rgba(27,128,62,.55);
+  }
+  .led.off{background:var(--gray);box-shadow:0 0 0 3px rgba(84,110,122,.15);}
+  .term .row .label{font-weight:700;flex:1;}
+  .term .row .desc{color:var(--gray);font-size:13.5px;font-family:"Consolas",monospace;}
+
+  /* 流程圖（扁平 2D） */
+  .flow{
+    display:flex;align-items:stretch;gap:0;margin-top:24px;flex-wrap:wrap;
+  }
+  .step{
+    border:2px solid var(--navy);border-radius:14px;padding:14px 16px;background:#fff;
+    min-width:150px;flex:1;text-align:center;
+  }
+  .step .t{font-weight:800;font-size:15px;}
+  .step .d{font-size:12.5px;color:var(--gray);font-family:"Consolas",monospace;margin-top:4px;}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--navy);font-size:24px;padding:0 8px;font-weight:800;}
+  .step.wait{background:var(--yellow);border-color:#E6D24A;}
+
+  /* 約束表 */
+  table{width:100%;border-collapse:collapse;margin-top:22px;font-size:14.5px;}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top;}
+  th{background:var(--navy);color:#fff;font-weight:700;}
+  td code{color:var(--navy-soft);font-weight:600;}
+  tr:nth-child(even) td{background:#F7F9FB;}
+
+  /* Mermaid 圖容器 */
+  .diagram{
+    border:2px solid var(--navy);border-radius:18px;background:#fff;
+    padding:22px 18px;margin-top:22px;overflow-x:auto;text-align:center;
+  }
+  .diagram .cap{
+    font-family:"Consolas",monospace;font-size:13px;color:var(--gray);
+    margin-bottom:14px;letter-spacing:1px;
+  }
+  .mermaid{display:flex;justify-content:center;}
+
+  .note{
+    margin-top:22px;border-left:4px solid var(--orange);background:#FFF8F4;
+    padding:14px 18px;border-radius:0 12px 12px 0;font-size:14.5px;color:#5a3a28;
+  }
+  .foot{margin-top:64px;padding-top:20px;border-top:2px solid var(--navy);
+    font-family:"Consolas",monospace;font-size:12.5px;color:var(--gray);}
+</style>
+</head>
+<body>
+
+<!-- ════════ 封面 ════════ -->
+<header class="cover">
+  <svg class="orbit" viewBox="0 0 560 560" fill="none" stroke="#9FB0C0" stroke-width="1">
+    <ellipse cx="280" cy="280" rx="250" ry="120" transform="rotate(-25 280 280)"/>
+    <ellipse cx="280" cy="280" rx="210" ry="200" transform="rotate(15 280 280)"/>
+    <ellipse cx="280" cy="280" rx="160" ry="250" transform="rotate(-10 280 280)"/>
+    <circle cx="280" cy="280" r="6" fill="#9FB0C0" stroke="none"/>
+    <circle cx="64" cy="210" r="4" fill="#1B803E" stroke="none"/>
+    <circle cx="486" cy="356" r="4" fill="#E65C19" stroke="none"/>
+  </svg>
+  <div class="inner">
+    <div class="eyebrow">TASA · NEAR-REAL-TIME SCHEDULING · DAILY BUILD</div>
+    <h1>遙測衛星近即時<br>自動化排程系統<span class="accent">.</span></h1>
+    <div class="sub">今日進度報告 — 從專案初始化到滾動視界動態重排</div>
+    <div class="meta">
+      <span class="tag">DATE 2026-06-08</span>
+      <span class="tag">TARGET FORMOSAT-8 (FS-8A)</span>
+      <span class="tag">STACK Python · OR-Tools CP-SAT</span>
+      <span class="tag">TESTS 17 PASSED</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ════════ 摘要數據 ════════ -->
+  <section>
+    <h2><span class="no">01</span>今日成果總覽</h2>
+    <p class="lead">一個工作階段內，完成從零初始化、完整系統規劃書、OR-Tools 排程核心，到滾動視界動態重排骨幹。</p>
+    <div class="grid c4">
+      <div class="card"><div class="big">4</div><div class="unit">交付里程碑</div></div>
+      <div class="card"><div class="big">17</div><div class="unit">單元測試全過</div></div>
+      <div class="card"><div class="big">13</div><div class="unit">硬約束已建模 C1–C12,15</div></div>
+      <div class="card"><div class="big">~15<span style="font-size:18px"> ms</span></div><div class="unit">緊急插單重排</div></div>
+    </div>
+  </section>
+
+  <!-- ════════ 里程碑狀態 ════════ -->
+  <section>
+    <h2><span class="no">02</span>里程碑狀態</h2>
+    <div class="term">
+      <div class="row"><span class="led"></span><span class="label">專案初始化</span>
+        <span class="desc">Python 骨架 · 請求層 webhook · PSS adapter(mock)</span>
+        <span class="pill done">DONE</span></div>
+      <div class="row"><span class="led"></span><span class="label">系統規劃書</span>
+        <span class="desc">需求 · SOW · ConOps · 架構 · 介面 · 工作流</span>
+        <span class="pill done">DONE</span></div>
+      <div class="row"><span class="led"></span><span class="label">Phase 2 — OR-Tools CP-SAT 引擎</span>
+        <span class="desc">scheduler/cpsat.py · 硬約束 C1–C7</span>
+        <span class="pill done">DONE</span></div>
+      <div class="row"><span class="led"></span><span class="label">滾動視界 + 緊急增量重排</span>
+        <span class="desc">scheduler/rolling.py · §8.1 / §8.3</span>
+        <span class="pill done">DONE</span></div>
+      <div class="row"><span class="led"></span><span class="label">事件驅動 API + 通知</span>
+        <span class="desc">service.py · trigger/event.py · notify 事件 → Email/Slack</span>
+        <span class="pill done">DONE</span></div>
+      <div class="row"><span class="led off"></span><span class="label">Phase 3 — 資源模型 C8–C14</span>
+        <span class="desc">順序相依 · 站點 Cumulative · SSR · 電力</span>
+        <span class="pill next">NEXT</span></div>
+    </div>
+  </section>
+
+  <!-- ════════ 系統架構與流程 ════════ -->
+  <section>
+    <h2><span class="no">03</span>系統架構與處理流程</h2>
+    <p class="lead">三層架構：請求層受理與分類、排程引擎層滾動視界求解與衝突解決、執行層指令生成與回饋。</p>
+
+    <div class="diagram">
+      <div class="cap">FIG.1 — 三層系統架構（依官方 系統架構.pptx 重畫）</div>
+      <pre class="mermaid">
+flowchart LR
+  CLI["客戶 / IPS"]:::ext
+  EV["事件來源<br>衛星異常 · 地面站離線<br>雲覆蓋 · 緊急訂單"]:::ext
+
+  subgraph REQ["Request Layer 請求層"]
+    direction TB
+    ORD["Orders"]
+    RX["事件接收器"]
+    PSSE["PSS 評估"]
+    ORD --> PSSE
+    RX --> PSSE
+  end
+
+  subgraph SCH["Scheduling Layer 排程層"]
+    direction TB
+    ROLL["滾動視界排程器"]
+    ORT["OR-Tools 求解器"]
+    RES["資源驗證"]
+    MQ["訊息佇列"]
+    SUB["訂閱者"]
+    CMD["指令序列生成"]
+    ROLL <--> ORT
+    ROLL <-->|REST 驗證| RES
+    MQ -->|Webhook| SUB
+    ROLL --> CMD
+  end
+
+  subgraph EXE["Execute Layer 執行層"]
+    direction TB
+    REV["通知審查"]
+    UP["指令上傳"]
+    MON["衛星狀態監控"]
+    REV --> UP
+  end
+
+  CLI -->|REST/Webhook| ORD
+  EV --> RX
+  RX -->|事件| MQ
+  PSSE -->|REST API| ROLL
+  CMD -->|JSON 排程| REV
+  UP --> SAT[("衛星 FS-8A")]
+  MON -->|回饋| ROLL
+
+  classDef ext fill:#EEF2F7,stroke:#546E7A,color:#33485e;
+  classDef engine fill:#F0F7F2,stroke:#1B803E,color:#0e5a2a;
+  class CLI,EV,SAT ext;
+  class ORT engine;
+      </pre>
+    </div>
+
+    <div class="diagram">
+      <div class="cap">FIG.2 — 資料交換介面 (DATA EXCHANGE INTERFACES)</div>
+      <pre class="mermaid">
+flowchart LR
+  Client["客戶 / IPS"] -->|"REST / Webhook"| RL["請求層"]
+  PSS[("PSS")] -->|"REST 拉取"| ENG["排程引擎"]
+  ENG -->|"REST 驗證"| IPSV[("IPS 資源驗證")]
+  ENG -->|"JSON 排程"| SOCC["SOCC 執行"]
+  ENG -->|"事件"| BUS[("事件總線")]
+  BUS -->|"Webhook"| SUB["訂閱者 / 通知"]
+
+  classDef ext fill:#EEF2F7,stroke:#546E7A,color:#33485e;
+  class PSS,IPSV,BUS ext;
+      </pre>
+    </div>
+
+    <div class="diagram">
+      <div class="cap">FIG.3 — 緊急訂單事件序列 (URGENT ORDER · EVENT-DRIVEN FLOW)</div>
+      <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant C as 客戶 / IPS
+  participant API as 事件驅動 API
+  participant SVC as SchedulingService
+  participant ENG as CP-SAT 引擎
+  participant N as 通知 Email/Slack
+  C->>API: POST /api/v1/orders (urgent)
+  API->>SVC: submit_order()
+  SVC->>SVC: 優先度分類 → urgent
+  SVC->>ENG: reschedule_urgent() 凍結近端+暖啟動
+  ENG-->>SVC: 新計畫 + diff
+  SVC->>N: schedule.generated
+  SVC-->>API: added / removed / moved
+  API-->>C: 200 OK (~14 ms)
+      </pre>
+    </div>
+
+    <p class="lead" style="margin-top:32px;">事件驅動處理流程：客戶／PSS 訂單進入，經滾動視界排程與衝突解決，輸出 JSON 並通知。
+       （例行訂單入佇列待下次 <code>POST /schedule/run</code>；緊急訂單即時觸發增量重排。）</p>
+    <div class="flow">
+      <div class="step"><div class="t">事件觸發</div><div class="d">Webhook / 定時</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">拉取 PSS 資料</div><div class="d">adapter (mock)</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">滾動視界排程</div><div class="d">CP-SAT solve()</div></div>
+      <div class="arrow">→</div>
+      <div class="step wait"><div class="t">衝突解決</div><div class="d">改站／延後／降級</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">輸出 + 通知</div><div class="d">JSON · Email/Slack</div></div>
+    </div>
+  </section>
+
+  <!-- ════════ 排程約束 ════════ -->
+  <section>
+    <h2><span class="no">04</span>排程約束藍圖 (C1–C15)</h2>
+    <p class="lead">取自 FS-8A 真實限制條件，以 OR-Tools CP-SAT 建模，每條皆有對應測試驗證。</p>
+    <table>
+      <thead><tr><th style="width:70px">編號</th><th>約束</th><th>模型化</th><th style="width:90px">狀態</th></tr></thead>
+      <tbody>
+        <tr><td><code>C1/C2</code></td><td>活動互斥（單衛星時間線）</td><td><code>AddNoOverlap</code></td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C3</code></td><td>RSI_REC 每軌 ≤ 8 min</td><td>逐軌加權和上界</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C4</code></td><td>RSI_PBK 每軌 ≤ 10 min</td><td>逐軌加權和上界</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C5</code></td><td>GOHOME 間隔 ≤ 50 min（充電）</td><td>連續錨點間隔上界</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C6</code></td><td>RSI_PBK 落 X-band 仰角 ≥ 11.5° 窗</td><td>OptionalInterval 容納</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C7</code></td><td>SPL 落 Eclipse ∩ S-band 窗</td><td>OptionalInterval 容納</td><td><span class="pill done">PASS</span></td></tr>
+      </tbody>
+    </table>
+    <p class="lead" style="margin-top:30px;">完整約束藍圖（C8–C15，規劃書 §10）— 取自 FS-8A 真實限制。C8–C12、C15 已建模，C13/C14 需外部規格。</p>
+    <table>
+      <thead><tr><th style="width:70px">編號</th><th>約束</th><th>模型化</th><th style="width:90px">狀態</th></tr></thead>
+      <tbody>
+        <tr><td><code>C8</code></td><td>兩取像間隔 ≥ 26 s</td><td>加長區間 NoOverlap</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C9</code></td><td>機動後 +30 s 緩衝才取像</td><td>成對順序 + lag</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C10</code></td><td>RSI_PBK 待同 <code>arlentryid</code> 之 REC 完成</td><td><code>end_REC ≤ start_PBK</code> + 蘊含</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C11</code></td><td>RSI_DEL = 對應 PBK contact + 6 s</td><td>等式 + 順序蘊含</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C12</code></td><td>一站同時段只服務一星（+turnaround）</td><td>站資源 <code>NoOverlap/Cumulative</code> + 切換</td><td><span class="pill done">PASS</span></td></tr>
+        <tr><td><code>C13</code></td><td>SSR 容量／檔數／同時讀寫</td><td><code>Cumulative</code> + 計數</td><td><span class="pill wait">需外部</span></td></tr>
+        <tr><td><code>C14</code></td><td>電池電壓門檻（27.8V 關 Payload / 26.4V ARO）</td><td>能量收支模擬</td><td><span class="pill wait">需外部</span></td></tr>
+        <tr><td><code>C15</code></td><td>指令成對且不交錯（STX/EU/SSR/CC）</td><td>成對 + 同設備 span <code>NoOverlap</code></td><td><span class="pill done">PASS</span></td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <strong>設計取捨：</strong>採單衛星時間線之保守互斥模型；<strong>C8–C12、C15 已實作並測試</strong>。
+      C12 的天線並行（antennas&gt;1）僅在多衛星情境生效，單衛星由主互斥序列化、turnaround 為實質效果；
+      C15 採同設備指令對 span 順序化（非交錯）。C13/C14 需外部規格（SSR 讀寫模型、EPS 充放電模型）到位。SSR 所需 sector：
+      <code>Required = ceil(Total_bit / (128 × 2²⁰))</code>。
+    </div>
+  </section>
+
+  <!-- ════════ 動態重排 ════════ -->
+  <section>
+    <h2><span class="no">05</span>近即時動態重排與端到端整合</h2>
+    <p class="lead">滾動視界「且戰且走」：只規劃眼前一段視界，緊急訂單到達時僅重排當前視界，凍結近端已上鏈活動並暖啟動。</p>
+    <div class="grid c2">
+      <div class="card">
+        <h3>§8.1 滾動視界主迴圈</h3>
+        <p>視界 <code>H</code> / 步長 <code>Δt</code> / 凍結區 <code>freeze</code>；跨視界以占位區間與 Duty Cycle 扣除維持一致性。</p>
+        <p style="margin-top:10px;"><span class="pill done">6 迭代</span> <span class="pill done">總求解 81 ms</span></p>
+      </div>
+      <div class="card">
+        <h3>§8.3 緊急增量重排</h3>
+        <p>緊急訂單僅重排當前視界：凍結近端、暖啟動 <code>hints</code>、輸出差異 <code>diff</code>，不必全日重算。</p>
+        <p style="margin-top:10px;"><span class="pill done">14 ms</span> <span class="pill done">URGENT 插入成功</span></p>
+      </div>
+    </div>
+    <div class="term">
+      <div class="row"><span class="led"></span><span class="label mono">solve(fixed_starts, hints, duty_consumed)</span>
+        <span class="desc">三參數支援凍結／暖啟動／資源扣除</span></div>
+      <div class="row"><span class="led"></span><span class="label mono">RollingHorizonScheduler.run()</span>
+        <span class="desc">§8.1 滾動主迴圈</span></div>
+      <div class="row"><span class="led"></span><span class="label mono">reschedule_urgent()</span>
+        <span class="desc">§8.3 緊急插單，回傳 added / removed / moved</span></div>
+    </div>
+
+    <p class="lead" style="margin-top:32px;">端到端整合：PSS 提供軌道／地面站／可見窗，服務層自動為訂單指派軌道並套可見窗，再交滾動視界排程。</p>
+    <div class="diagram">
+      <div class="cap">FIG.4 — 端到端資料流（官方元件 ↔ 程式模組）</div>
+      <pre class="mermaid">
+flowchart LR
+  PSSE[("PSS 評估<br>provider.fetch_context")]:::ext
+  ORD["Orders<br>OrderRequest"]
+  SVC["事件接收器 + 充實<br>service._enrich"]
+  ROLL["滾動視界排程器<br>rolling.run"]
+  ORT["OR-Tools 求解器<br>cpsat · C1–C12,15"]:::engine
+  RES["資源驗證<br>verify_resources"]
+  CMD["指令序列生成<br>JSON 排程"]
+  SUB["通知審查 / 訂閱者<br>notify events"]:::ext
+
+  ORD --> SVC
+  PSSE -->|軌道·可見窗| SVC
+  SVC -->|REST API| ROLL
+  ROLL <--> ORT
+  ROLL <-->|REST 驗證| RES
+  ROLL --> CMD --> SUB
+
+  classDef ext fill:#EEF2F7,stroke:#546E7A,color:#33485e;
+  classDef engine fill:#F0F7F2,stroke:#1B803E,color:#0e5a2a;
+      </pre>
+    </div>
+
+    <p class="lead" style="margin-top:24px;">實測（demo_pss_e2e）：RSI_PBK 訂單未帶任何窗資訊，服務自動套上 X-band 窗，CP-SAT 排在窗內。</p>
+    <table>
+      <thead><tr><th>活動</th><th>類型</th><th>軌道</th><th>時段</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>URGENT-X</code></td><td>RSI_REC</td><td>O1</td><td>5–9m</td><td>緊急插單，擠掉 REC-A（15 ms）</td></tr>
+        <tr><td><code>REC-B</code></td><td>RSI_REC</td><td>O1</td><td>9–13m</td><td>每軌 Duty Cycle ≤ 8 min（C3）</td></tr>
+        <tr><td><code>PBK-A</code></td><td>RSI_PBK</td><td>O1</td><td>50–55m</td><td>自動落在 X-band 窗 50–58m（C6）</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      接真 PSS API 只需補完 <code>RestPSSProvider.fetch_context()</code> 並把 <code>pss.adapter</code> 設為 <code>rest</code>，
+      排程／輸出／通知完全不動。
+    </div>
+  </section>
+
+  <!-- ════════ 交付物 ════════ -->
+  <section>
+    <h2><span class="no">06</span>今日交付物</h2>
+    <div class="grid c2">
+      <div class="card"><h3>📄 docs/00_系統規劃書.md</h3><p>系統需求(21)、SOW、ConOps、三層架構、API/ICD、工作流、OR-Tools 限制式 C1–C15，全程 Mermaid 圖。</p></div>
+      <div class="card"><h3>⚙️ scheduler/cpsat.py</h3><p>OR-Tools CP-SAT 引擎，活動式模型，硬約束 C1–C7。</p></div>
+      <div class="card"><h3>🔄 scheduler/rolling.py</h3><p>滾動視界主迴圈 + 緊急增量重排，跨視界一致性處理。</p></div>
+      <div class="card"><h3>🧪 tests/ · demo_*.py</h3><p>17 個單元測試逐條驗證約束；兩支示範可直接執行檢視結果。</p></div>
+    </div>
+  </section>
+
+  <!-- ════════ 規劃書重點：範圍 ════════ -->
+  <section>
+    <h2><span class="no">07</span>專案範圍與設計準則</h2>
+    <p class="lead">摘自系統規劃書 §1。取代現行 MPSS 人工/批次排程，達成近即時、自動化、可動態調整。</p>
+    <div class="grid c2">
+      <div class="card">
+        <h3>✓ 納入範圍 (In Scope)</h3>
+        <p>任務請求受理與優先度評估 · 滾動視界排程與衝突解決 · 指令序列生成與上鏈 ·
+           衛星資源(SSR/Contact/Duty Cycle)驗證 · REST API / Webhook 整合(SOCC↔IPS)</p>
+      </div>
+      <div class="card">
+        <h3>✗ 不納入 (Out of Scope)</h3>
+        <p>衛星飛控軟體(FSW)本體修改 · 影像處理與產品生成(IPS 內部) ·
+           地面站天線硬體控制 · 軌道測定(OD)演算法本體</p>
+      </div>
+    </div>
+    <div class="term">
+      <div class="row"><span class="led"></span><span class="label">資料源可替換</span>
+        <span class="desc">PSS adapter 介面，mock 開發、規格到位即換</span></div>
+      <div class="row"><span class="led"></span><span class="label">限制式設定驅動</span>
+        <span class="desc">scheduling_rules.yaml，改規則不改程式</span></div>
+      <div class="row"><span class="led"></span><span class="label">增量重排</span>
+        <span class="desc">只重排受影響視界，不全星系全日重算</span></div>
+    </div>
+  </section>
+
+  <!-- ════════ 規劃書重點：系統需求與效能 ════════ -->
+  <section>
+    <h2><span class="no">08</span>系統需求與效能指標</h2>
+    <p class="lead">摘自規劃書 §2（21 條功能需求中之關鍵項）與 §11 非功能指標。</p>
+    <table>
+      <thead><tr><th style="width:120px">編號</th><th>關鍵功能需求</th><th style="width:70px">優先</th></tr></thead>
+      <tbody>
+        <tr><td><code>SR-REQ-02</code></td><td>優先度評估與分類（含客戶緊急訂單插單）</td><td><span class="pill next">高</span></td></tr>
+        <tr><td><code>SR-SCH-01</code></td><td>滾動視界排程（眼前 1–2 軌 / 1–2 小時）</td><td><span class="pill next">高</span></td></tr>
+        <tr><td><code>SR-SCH-04</code></td><td>快速重排 ReSchedule（天氣/故障/異常/插單）</td><td><span class="pill next">高</span></td></tr>
+        <tr><td><code>SR-SCH-05</code></td><td>多目標最佳化（覆蓋/延遲/吞吐/能源/優先度）</td><td><span class="pill next">高</span></td></tr>
+        <tr><td><code>SR-RES-01</code></td><td>資源充足性驗證 API（供 IPS：SSR/Contact/Duty）</td><td><span class="pill next">高</span></td></tr>
+        <tr><td><code>SR-EXE-04</code></td><td>AOCS MPQ SEQ 擴充 256→512（每日 150 點位）</td><td><span class="pill next">高</span></td></tr>
+        <tr><td><code>SR-INT-01</code></td><td>SOCC↔IPS RESTful API（跨網域安全交換）</td><td><span class="pill next">高</span></td></tr>
+        <tr><td><code>SR-AI-01</code></td><td>AI 輔助最佳化（暖啟動加速、風險預測）</td><td><span class="pill wait">中</span></td></tr>
+      </tbody>
+    </table>
+    <div class="grid c4" style="margin-top:22px;">
+      <div class="card"><div class="big">≤60<span style="font-size:18px"> s</span></div><div class="unit">單次視界求解</div></div>
+      <div class="card"><div class="big">≤10<span style="font-size:18px"> s</span></div><div class="unit">緊急重排可行解</div></div>
+      <div class="card"><div class="big">≤2<span style="font-size:18px"> min</span></div><div class="unit">緊急訂單端到端</div></div>
+      <div class="card"><div class="big">99.5<span style="font-size:18px"> %</span></div><div class="unit">服務可用度</div></div>
+    </div>
+  </section>
+
+  <!-- ════════ 規劃書重點：操作情境 ════════ -->
+  <section>
+    <h2><span class="no">09</span>操作情境 (ConOps)</h2>
+    <p class="lead">摘自規劃書 §4。三類核心情境驅動系統設計。</p>
+    <div class="grid c2">
+      <div class="card">
+        <h3>A · 例行自動排程</h3>
+        <p>滾動視界觸發 → 收集待排任務與優先度 → IPS 驗證資源 → CP-SAT 求解 →
+           MA 審查核可 → 生成指令，視界向前滾動。</p>
+        <p style="margin-top:8px;"><span class="pill done">自動化</span> <span class="pill off">MA 僅審查</span></p>
+      </div>
+      <div class="card">
+        <h3>B · 客戶緊急訂單插單</h3>
+        <p>Webhook 收緊急訂單 → 優先度評估 → 鎖定當前視界增量重排 →
+           有解則 MA 快速核可、覆寫指令；無解則回報降級建議。</p>
+        <p style="margin-top:8px;"><span class="pill next">動態調整</span> <span class="pill done">≈14 ms</span></p>
+      </div>
+      <div class="card">
+        <h3>C · 地面站故障 / 衛星異常重排</h3>
+        <p>監控事件（站離線 / 衛星 ARO）→ 標記受影響活動 →
+           衝突解決器改站/改星/延後/降級 → 覆寫指令並通知。</p>
+        <p style="margin-top:8px;"><span class="pill next">快速重排</span> <span class="pill wait">事件驅動</span></p>
+      </div>
+      <div class="card">
+        <h3>衝突解決策略階梯</h3>
+        <p class="mono" style="font-size:13.5px;color:#3a4f63;">
+           改地面站 → 延後至次一可見窗 → 轉派其他衛星 → 降級(解析度/壓縮比) → 標記無解+建議</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 規劃書重點：技術概念 ════════ -->
+  <section>
+    <h2><span class="no">10</span>關鍵技術概念</h2>
+    <p class="lead">摘自規劃書 §9。技術演進路線：精確求解 → 快速近似 → 自適應學習。</p>
+    <div class="grid c2">
+      <div class="card">
+        <h3>滾動視界排程器</h3>
+        <p>「且戰且走」：只規劃眼前一段視界 <code>H</code>，執行一部分後向前滾動 <code>Δt</code>。
+           吸收雲遮/站況/插單不確定性，計算可控，天然支援 ReSchedule。</p>
+      </div>
+      <div class="card">
+        <h3>Google OR-Tools (CP-SAT)</h3>
+        <p>活動為區間變數；互斥用 <code>NoOverlap</code>、資源用 <code>Cumulative</code>、
+           順序用線性不等式；暖啟動 <code>hint</code> + 時限 <code>max_time</code> 契合近即時。</p>
+      </div>
+      <div class="card">
+        <h3>AI 優化定位</h3>
+        <p>啟發式暖啟動（加速收斂）· 雲遮/衝突/資源耗盡風險預測（調權重）·
+           參數自適應（動態調 H、Δt、權重）。</p>
+      </div>
+      <div class="card">
+        <h3>多目標權衡 (§10.3)</h3>
+        <p class="mono" style="font-size:13px;color:#3a4f63;">
+           max  w1·覆蓋 + w2·吞吐<br>
+           min  w3·延遲 + w4·能源 + w5·優先度違反</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 規劃書重點：SOW 路線圖與風險 ════════ -->
+  <section>
+    <h2><span class="no">11</span>SOW 路線圖與風險</h2>
+    <p class="lead">摘自規劃書 §3.4 里程碑、§12 開發路線圖、§13 風險。</p>
+    <div class="flow">
+      <div class="step"><div class="t">Phase 1–2</div><div class="d">骨架 + CP-SAT</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">Phase 3</div><div class="d">資源模型</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">Phase 4</div><div class="d">滾動+Webhook</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">Phase 5</div><div class="d">SOCC↔IPS</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">Phase 6–7</div><div class="d">AI + 演練</div></div>
+    </div>
+    <p class="lead" style="margin-top:30px;">⚠️ 待確認事項（§13，需向相關次系統取得）</p>
+    <div class="term">
+      <div class="row"><span class="led off"></span><span class="label">PSS API 規格</span>
+        <span class="desc">endpoint / 認證 / 軌道與可見窗格式</span><span class="pill wait">SOCC/PSS</span></div>
+      <div class="row"><span class="led off"></span><span class="label">Maneuver 禁區與最小間隔</span>
+        <span class="desc">特定緯度/時段禁 Maneuver/GOHOME</span><span class="pill wait">AOCS</span></div>
+      <div class="row"><span class="led off"></span><span class="label">能量收支模型</span>
+        <span class="desc">充放電率與負載模型（C14）</span><span class="pill wait">EPS</span></div>
+      <div class="row"><span class="led off"></span><span class="label">地面站清單與遮罩</span>
+        <span class="desc">X/S-band mask、turnaround time</span><span class="pill wait">SOCC</span></div>
+    </div>
+  </section>
+
+  <!-- ════════ 下一步 ════════ -->
+  <section>
+    <h2><span class="no">12</span>下一步</h2>
+    <div class="term">
+      <div class="row"><span class="led off"></span><span class="label">把滾動視界接上 Webhook 事件</span>
+        <span class="desc">trigger/event.py → reschedule_urgent()，端到端事件驅動</span>
+        <span class="pill next">建議優先</span></div>
+      <div class="row"><span class="led off"></span><span class="label">Phase 3：C8–C11（免外部規格）</span>
+        <span class="desc">取像間隔 ≥26s · 機動 +30s · arlentryid 順序</span>
+        <span class="pill next">可立即做</span></div>
+      <div class="row"><span class="led off"></span><span class="label">補 §13 待確認事項</span>
+        <span class="desc">PSS API 規格 · 地面站遮罩 · 能量收支模型</span>
+        <span class="pill wait">需外部</span></div>
+    </div>
+  </section>
+
+  <div class="foot">
+    GENERATED 2026-06-08 · STYLE: TASA Aerospace System-Engineering Guide · PROJECT: neal-time_schedule_auto_20260608
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad:true,
+    theme:"base",
+    themeVariables:{
+      fontFamily:'"Microsoft JhengHei","Inter",sans-serif',
+      fontSize:"15px",
+      primaryColor:"#FFFFFF",
+      primaryBorderColor:"#002A54",
+      primaryTextColor:"#002A54",
+      lineColor:"#0B3C5D",
+      clusterBkg:"#F7F9FB",
+      clusterBorder:"#002A54",
+      tertiaryColor:"#FFFFFF"
+    },
+    flowchart:{curve:"basis",useMaxWidth:true,htmlLabels:true}
+  });
+</script>
+</body>
+</html>
