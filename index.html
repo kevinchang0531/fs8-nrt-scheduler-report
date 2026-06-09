@@ -195,6 +195,9 @@
       <div class="row"><span class="led"></span><span class="label">事件驅動 API + 通知</span>
         <span class="desc">service.py · trigger/event.py · notify 事件 → Email/Slack</span>
         <span class="pill done">DONE</span></div>
+      <div class="row"><span class="led"></span><span class="label">多衛星擴充</span>
+        <span class="desc">逐衛星時間線 · C12 地面站跨衛星共用（天線並行生效）</span>
+        <span class="pill done">DONE</span></div>
       <div class="row"><span class="led off"></span><span class="label">Phase 3 — 資源模型 C8–C14</span>
         <span class="desc">順序相依 · 站點 Cumulative · SSR · 電力</span>
         <span class="pill next">NEXT</span></div>
@@ -341,8 +344,9 @@ sequenceDiagram
       </tbody>
     </table>
     <div class="note">
-      <strong>設計取捨：</strong>採單衛星時間線之保守互斥模型；<strong>C8–C12、C15 已實作並測試</strong>。
-      C12 的天線並行（antennas&gt;1）僅在多衛星情境生效，單衛星由主互斥序列化、turnaround 為實質效果；
+      <strong>設計取捨：</strong><strong>C8–C12、C15 已實作並測試</strong>。
+      <strong>已支援多衛星</strong>：互斥/Duty/GOHOME/取像間隔/機動緩衝/指令配對皆按衛星分組，
+      地面站（C12）為跨衛星共用資源，天線數 &gt;1 時不同衛星的接觸可於同時段並行；
       C15 採同設備指令對 span 順序化（非交錯）。C13/C14 需外部規格（SSR 讀寫模型、EPS 充放電模型）到位。SSR 所需 sector：
       <code>Required = ceil(Total_bit / (128 × 2²⁰))</code>。
     </div>
