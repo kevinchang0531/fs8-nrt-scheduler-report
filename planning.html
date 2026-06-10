@@ -321,6 +321,28 @@ sequenceDiagram
     SE->>EX: 覆寫指令, 通知相關方
 ```
 
+> 實作：`POST /api/v1/events`（`station_offline` / `satellite_anomaly`）。
+> 站離線 → 移除站資源、未執行接觸改站重排；衛星異常 → 暫停該星全部未執行活動，
+> 他星不受影響。皆走 §8.3 增量重排管線（凍結近端 + 暖啟動）。
+
+### 4.5 情境 D — 雲覆蓋作廢重拍
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CLD as 雲圖/品質判定(IPS)
+    participant API as 事件 API
+    participant SE as 排程引擎
+    participant NT as 通知
+    CLD->>API: POST /api/v1/events {cloud_cover, 受影響取像}
+    API->>SE: 作廢受影響 RSI_REC + 下游 PBK/DEL
+    SE->>SE: 重拍提升優先度, 增量重排(§8.3)
+    SE-->>API: diff (cancelled/added/removed)
+    API->>NT: ☁️ 雲覆蓋作廢重拍 通知
+```
+
+雲覆蓋超標的取像即使已執行，影像不可用：系統作廢該 REC 與同 `arlentryid`
+的下游回放/刪除，將重拍活動優先度提升後立即增量重排，於下一可行時窗重新取像。
+
 ---
 
 ## 5. 系統架構 (System Architecture)
@@ -470,6 +492,7 @@ graph LR
 | POST | `/api/v1/orders` | 提交任務請求（含緊急旗標） | 回傳 order_id |
 | GET | `/api/v1/orders/{id}` | 查詢訂單狀態 | |
 | DELETE | `/api/v1/orders/{id}` | 取消訂單 | 觸發重排 |
+| POST | `/api/v1/events` | 緊急事件通報（雲覆蓋/站離線/衛星異常） | 觸發 §8.3 增量重排，回傳 diff |
 | POST | `/api/v1/schedule/run` | 觸發一次滾動視界排程 | 事件/定時呼叫 |
 | GET | `/api/v1/schedule/{horizon_id}` | 取得排程結果 (JSON) | |
 | POST | `/api/v1/resources/verify` | 資源充足性驗證 | 供 IPS：SSR/Contact/DutyCycle |
@@ -487,6 +510,7 @@ graph LR
 | `resource.exhausted` | 資源不足 | 資源類型, 缺口 |
 | `satellite.anomaly` | 衛星異常 (ARO 等) | sat, 受影響活動 |
 | `groundstation.offline` | 地面站離線 | station, 受影響 Pass |
+| `cloud.cover` | 雲覆蓋作廢重拍 | event_id, 作廢活動, 重拍 |
 
 ### 7.4 核心資料模型（JSON Schema 摘要）
 
@@ -665,6 +689,73 @@ minimize  w3·任務完成延遲 + w4·能源消耗 + w5·優先度違反
 3. 先求可行解（滿足硬約束），再於剩餘時間內優化軟目標。
 4. 無可行解 → 觸發 §8.2 衝突解決（改站/延後/改星/降級）。
 
+### 10.5 數學模型正式化（限制式 (1)–(66)，對應活動限制明細）
+
+**集合與索引**
+
+| 符號 | 意義 |
+| :-- | :-- |
+| `A` | 候選活動集合；`a ∈ A` 帶型別 τ(a)、衛星 sat(a)、時長 d_a、優先權 w_a |
+| `K` | 活動型別：ATT, ORB, GOH, GAT, REC, PBK, DEL, SPL_PRO, SPL_PBK, MON, MISC |
+| `M` | 機動型別子集 {ATT, ORB, GOH, GAT} |
+| `O` | 軌道集合（96 min/軌）；`A_k^{s,o}` = 衛星 s 軌 o 上型別 k 的活動 |
+| `G` | 地面站集合；站 g 有天線數 cap_g、turnaround t_g |
+| `W_X(s), W_S(s), W_E(s)` | 衛星 s 的 X-band(≥11.5°)、S-band(≥10°)、Eclipse 窗集合 |
+| `ρ(a)` | 活動 a 的 arlentryid（取像任務條目） |
+
+**決策變數**
+
+```
+x_a ∈ {0,1}     是否排入（present）
+s_a, e_a ∈ ℤ₊   起、訖（相對視界起點之秒）, e_a = s_a + d_a
+y_{a,g} ∈ {0,1} 活動 a 指派站 g（接觸類活動）
+```
+
+**硬約束（編號對應活動限制明細）**
+
+| 編號 | 數學式 | 說明 / 程式對應 |
+| :-- | :-- | :-- |
+| (1)–(3) | `∀ a≠b, τ(a)=τ(b)=k, sat(a)=sat(b): x_a x_b = 1 ⇒ [s_a,e_a) ∩ [s_b,e_b) = ∅` | 同類自身互斥（C2，含 SPL_PRO/PBK 自身） |
+| (4)–(6) | `∀ τ(a),τ(b) ∈ M ∪ {REC}, sat(a)=sat(b): 區間不交` | 機動×機動、機動×REC 互斥（C1）；SPL_PRO/PBK 僅與 ORB 取此式 |
+| (7)–(9) | PBK 自身互斥（同 (1)–(3) 取 k=PBK） | C2 |
+| (10)–(12) | `∀ τ(a) ∈ M ∪ {REC}, τ(b)=PBK: 區間不交` | 機動/REC × PBK 互斥（C1） |
+| (13)–(20) | `s_{g₁} ≤ Δ_GH；s_{gᵢ₊₁} − e_{gᵢ} ≤ Δ_GH；H_end − e_{g_last} ≤ Δ_GH`，Δ_GH = 3000s | C5 GOHOME 50 min 充電鏈 |
+| (21)–(24) | `τ(a) ∈ {MON, SPL_PBK} ⇒ ∃w ∈ W_S(sat(a)): [s_a,e_a) ⊆ w` | S-band 接觸（C7 族） |
+| (25)–(28) | `∀s,o: Σ_{a ∈ A_REC^{s,o}} d_a·x_a ≤ 480` | C3 取像 Duty ≤ 8 min/軌（滾動時扣 carry-over） |
+| (29) | `x_p = 1 ⇒ x_r = 1 ∧ s_p ≥ e_r`，ρ(p)=ρ(r), τ(p)=PBK, τ(r)=REC | C10 回放待取像 |
+| (30)–(31) | `τ(a)=PBK ⇒ ∃w ∈ W_X(sat(a)): [s_a,e_a) ⊆ w` | C6 X-band 11.5° mask |
+| (32)–(34) | `Σ_{g∈G} y_{a,g} = x_a`（τ(a)=PBK） | 一子回放至多一站 |
+| (35) | `∀ p₁ 先於 p₂（同任務序）: e_{p₁} ≤ s_{p₂}` | PBK 先後順序 |
+| (37)–(39) | `x_d = 1 ⇒ x_r = x_p = 1`，ρ 相同 | C11 DEL 待 REC+PBK |
+| (40) | `s_d = e_p + 6` | C11 DEL = PBK contact fade + 6s |
+| (41) | DEL 先後順序（同 (35)） | 先發生先執行 |
+| (44)–(52) | DEL × REC、DEL × PBK、DEL × DEL 區間不交 | C1/C2（DEL 互斥僅此三組） |
+| (53) | `τ(a) = MISC ⇒ x_a = 1` | MISC 強制執行（mandatory） |
+| (54)–(57) | `τ(a)=SPL_PRO ⇒ ∃w ∈ W_E(sat(a)): [s_a,e_a) ⊆ w` | C7 Eclipse 條件 |
+| (58)–(61) | `τ(a)=SPL_PRO ⇒ [s_a,e_a) ⊆ W_S(sat(a))`（10° mask） | C7 |
+| (62) | `x_q = 1 ⇒ x_p = 1 ∧ s_q ≥ e_p`，τ(q)=SPL_PBK, τ(p)=SPL_PRO, ρ 相同 | SPL 回放待程序完成 |
+| (63)–(66) | `∀t: Σ_{a∈REC, s_a≤t} σ_a·x_a − Σ_{d∈DEL, e_d≤t} σ_d·x_d ≤ 4094`，σ_a = ⌈bits_a / (128·2²⁰)⌉；檔案數同式（±1 ≤ 512） | C13 SSR sector/檔案 Reservoir |
+
+**補充硬約束（限制條件表，未列入 (1)–(66) 編號）**
+
+| 約束 | 數學式 | 來源 |
+| :-- | :-- | :-- |
+| C4 | `Σ_{a ∈ A_PBK^{s,o}} d_a·x_a ≤ 600` | 回放 Duty ≤ 10 min/軌 |
+| C8 | `∀ a≠b ∈ REC, 同星: |s_a − s_b| ≥ d + 26`（以加長區間不交實作） | 兩取像間隔 ≥ 26 s |
+| C9 | `機動 m 與取像 r 同星且皆排入 ⇒ s_r ≥ e_m + 30 ∨ s_m ≥ e_r` | 機動後 30 s 緩衝 |
+| C12 | `∀g, ∀t: Σ_{a: y_{a,g}=1, t ∈ [s_a, e_a+t_g)} 1 ≤ cap_g` | 一站同時段 ≤ 天線數（跨衛星共用） |
+| C15 | `x_on = x_off；e_on ≤ s_off；同設備 span 不交錯；STX: e_off − s_on ≤ 960` | 指令成對 + XTX 16 min |
+| C14（待 EPS 模型） | `∀t: V_batt(t) ≥ 26.4V`（27.8V 自動關 Payload 先行告警） | 電力收支，需充放電模型 |
+
+**目標函數**
+
+```
+max  Σ_{a∈A} w_a · x_a          w_a：routine=10, high=50, urgent=500（雲覆蓋重拍 ≥100）
+```
+
+> CP-SAT 實作對照：互斥 → 分組 `NoOverlap`；窗容納 → 指示變數 + `OnlyEnforceIf`；
+> Duty → 線性和上界；SSR → `AddReservoirConstraintWithActive`；站資源 → `Cumulative(cap_g)`。
+
 ---
 
 ## 11. 非功能需求與資安
@@ -713,8 +804,14 @@ graph LR
 > - ✅ **多衛星擴充**：互斥（C1/C2）、Duty Cycle、GOHOME、取像間隔、機動緩衝、指令配對皆「按衛星分組」
 >   （`Activity.satellite`）；地面站（C12）為跨衛星共用資源，天線數 >1 時不同衛星接觸可同時段並行。
 >   測試 `tests/test_multisat.py`，共 48 測試全過。
-> - ⏭️ **下一步**：C13 SSR sector 核算、C14 電力收支 —— 需 §13 待確認事項（SSR 讀寫模型、
->   EPS 充放電模型）到位。接真 PSS API（補 `RestPSSProvider.fetch_context()`）。
+> - ✅ **互斥矩陣精確化**：C1/C2 由「全域互斥」改為依官方活動限制明細之互斥矩陣分組
+>   （MONITORING/SPL/DEL 互斥集合較窄，可與取像等並行，提升排程容量）。
+> - ✅ **C13 SSR**：sector 容量 + 檔案數上限（Reservoir，REC 佔用 / DEL 釋放）；
+>   SPL_PBK 待 SPL_PRO（限制式 62）；STX 開機 ≤16 min（FM_XTX*_TIMEOUT）。
+> - ✅ **緊急事件流程**：`POST /api/v1/events` 處理雲覆蓋（作廢重拍）/ 地面站離線（改站）/
+>   衛星異常（暫停該星），共用 §8.3 增量重排管線（§4.4/§4.5）。
+> - ⏭️ **下一步**：C14 電力收支（需 EPS 充放電模型）。接真 PSS API
+>   （補 `RestPSSProvider.fetch_context()`）。FPA 指令禁止期 7.5s/25s 矛盾待 FSW 確認。
 
 ---
 
@@ -726,6 +823,7 @@ graph LR
 | Maneuver 禁區 | 特定緯度/時段禁止 Maneuver、GOHOME（限制表標「待補」） | AOCS |
 | Maneuver 最小間隔 | 兩次機動最小間隔秒數待確認 | AOCS |
 | 能量收支模型 | C14 電池模擬需要充放電率與負載模型 | EPS |
+| FPA 指令禁止期 | 「時序限制」表載 25s、「次系統限制」表載 7.5s，數值矛盾 | FSW |
 | 緊急訂單核可流程 | 是否需人工核可、SLA 時限 | IPS/MA |
 | 地面站清單與遮罩 | 各站 X/S-band mask、turnaround time | SOCC |
 | 求解時限目標 | 近即時可接受的最長求解時間 | MA/SOCC |
